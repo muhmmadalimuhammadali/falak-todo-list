@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>To-Do List — Stay Focused</title>
+<meta name="description" content="A simple, beautiful to-do list app to organize your day and get things done." />
+<style>
+  :root{
+    --bg:#ffffff; --fg:#0b1220; --muted:#64748b; --card:#ffffff;
+    --border:#e5e7eb; --input:#e5e7eb; --ring:#94a3b8;
+    --primary:#0b1220; --primary-fg:#ffffff; --muted-bg:#f1f5f9;
+    --destructive:#dc2626;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b1220; --fg:#f8fafc; --muted:#94a3b8; --card:#111827;
+      --border:#1f2937; --input:#1f2937; --ring:#64748b;
+      --primary:#f8fafc; --primary-fg:#0b1220; --muted-bg:#111827;
+      --destructive:#f87171;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:600px;margin:0 auto;padding:48px 20px}
+  header p{margin:0;font-size:14px;color:var(--muted);font-weight:500}
+  h1{margin:4px 0 8px;font-size:30px;letter-spacing:-.02em}
+  .sub{font-size:14px;color:var(--muted);margin:0 0 24px}
+  form{display:flex;gap:8px}
+  input[type=text]{flex:1;padding:12px 16px;border:1px solid var(--input);
+    background:var(--card);color:var(--fg);border-radius:10px;font-size:14px;outline:none}
+  input[type=text]:focus{border-color:var(--ring);box-shadow:0 0 0 3px rgba(148,163,184,.25)}
+  .add{width:44px;height:44px;border:0;border-radius:10px;background:var(--primary);
+    color:var(--primary-fg);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .add:disabled{opacity:.5;cursor:not-allowed}
+  .filters{display:flex;gap:4px;background:var(--muted-bg);padding:4px;border-radius:10px;margin-top:20px;font-size:14px}
+  .filters button{flex:1;padding:6px 12px;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;text-transform:capitalize}
+  .filters button.active{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  ul{list-style:none;padding:0;margin:24px 0 0;display:flex;flex-direction:column;gap:8px}
+  li{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);
+    background:var(--card);border-radius:10px}
+  .check{width:24px;height:24px;border:1px solid var(--input);border-radius:999px;
+    background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--primary-fg);flex-shrink:0}
+  .check.done{background:var(--primary);border-color:var(--primary)}
+  .text{flex:1;font-size:14px;word-break:break-word}
+  .text.done{color:var(--muted);text-decoration:line-through}
+  .del{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:16px;padding:4px 8px}
+  .del:hover{color:var(--destructive)}
+  .empty{text-align:center;color:var(--muted);font-size:14px;margin-top:40px}
+  .clear{display:block;margin:32px auto 0;background:transparent;border:0;color:var(--muted);font-size:12px;cursor:pointer;font-weight:500}
+  .clear:hover{color:var(--fg)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <p id="date"></p>
+    <h1>Your to-do list</h1>
+    <p class="sub" id="remaining">Add your first task to get started.</p>
+  </header>
+  <form id="form">
+    <input id="input" type="text" placeholder="What needs to be done?" autocomplete="off" />
+    <button class="add" id="addBtn" type="submit" disabled aria-label="Add task">+</button>
+  </form>
+  <div class="filters" id="filters" style="display:none">
+    <button data-f="all" class="active">all</button>
+    <button data-f="active">active</button>
+    <button data-f="done">done</button>
+  </div>
+  <ul id="list"></ul>
+  <p class="empty" id="empty" style="display:none">Nothing to show here.</p>
+  <button class="clear" id="clear" style="display:none">Clear completed</button>
+</main>
+<script>
+  const KEY="todo.tasks.v1";
+  let tasks=[]; let filter="all";
+  try{tasks=JSON.parse(localStorage.getItem(KEY))||[]}catch{}
+  const $=(id)=>document.getElementById(id);
+  $("date").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  const save=()=>localStorage.setItem(KEY,JSON.stringify(tasks));
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  function render(){
+    const remaining=tasks.filter(t=>!t.done).length;
+    $("remaining").textContent=tasks.length===0?"Add your first task to get started.":`${remaining} task${remaining===1?"":"s"} remaining`;
+    $("filters").style.display=tasks.length?"flex":"none";
+    document.querySelectorAll("#filters button").forEach(b=>b.classList.toggle("active",b.dataset.f===filter));
+    const visible=tasks.filter(t=>filter==="all"?true:filter==="active"?!t.done:t.done);
+    const list=$("list"); list.innerHTML="";
+    visible.forEach(t=>{
+      const li=document.createElement("li");
+      li.innerHTML=`<button class="check ${t.done?"done":""}" aria-label="toggle">${t.done?"✓":""}</button>
+        <span class="text ${t.done?"done":""}"></span>
+        <button class="del" aria-label="delete">🗑</button>`;
+      li.querySelector(".text").textContent=t.text;
+      li.querySelector(".check").onclick=()=>{t.done=!t.done;save();render()};
+      li.querySelector(".del").onclick=()=>{tasks=tasks.filter(x=>x.id!==t.id);save();render()};
+      list.appendChild(li);
+    });
+    $("empty").style.display=(visible.length===0&&tasks.length>0)?"block":"none";
+    $("clear").style.display=tasks.some(t=>t.done)?"block":"none";
+  }
+  $("input").addEventListener("input",e=>$("addBtn").disabled=!e.target.value.trim());
+  $("form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const v=$("input").value.trim(); if(!v)return;
+    tasks.unshift({id:uid(),text:v,done:false});
+    $("input").value=""; $("addBtn").disabled=true;
+    save();render();
+  });
+  document.querySelectorAll("#filters button").forEach(b=>b.onclick=()=>{filter=b.dataset.f;render()});
+  $("clear").onclick=()=>{tasks=tasks.filter(t=>!t.done);save();render()};
+  render();
+</script>
+</body>
+</html>
